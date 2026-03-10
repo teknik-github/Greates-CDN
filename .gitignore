@@ -25,3 +25,5 @@ logs
 
 # CDN data (image metadata - not committed, recreated at runtime)
 data/images.json
+
+.claude
