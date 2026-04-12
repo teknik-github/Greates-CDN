@@ -2,18 +2,26 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A self-hosted CDN for images and files, built with Nuxt 4. Upload images with format conversion, or upload any file and get a public URL instantly. Protected by JWT authentication.
+A self-hosted CDN and secure file-sharing app built with Nuxt 4. Upload images with on-the-fly format conversion, publish public files, or create encrypted file links that require a passphrase before download. The app ships with a single-admin dashboard, JWT authentication, audit logging, and a dark mode UI.
 
 ![Greates CDN](./public/image.png)
 
 ## Features
 
-- **Image upload** — converts to WEBP, AVIF, JPG, or PNG using Sharp
-- **File upload** — PDFs, videos, audio, documents, archives (up to 200 MB)
-- **Download** — one-click download for both images and files
-- **Public CDN URLs** — `https://yourdomain/images/slug.ext` and `https://yourdomain/files/slug.ext`
-- **JWT authentication** — single-admin login, HttpOnly cookie session
-- **Security hardened** — file type blocklist, brute force protection, HTTP security headers
+- **Image upload** — convert uploads to `WEBP`, `AVIF`, `JPG`, or `PNG` with Sharp
+- **Public file upload** — upload PDFs, videos, audio, documents, and archives up to `200 MB`
+- **Encrypted file sharing** — optional passphrase protection using `AES-256-GCM` + `scrypt`
+- **Protected file access page** — encrypted files are opened through `/f/:id` and decrypted only after the correct passphrase is submitted
+- **Admin audit logs** — track failed decrypt attempts, busy decrypts, and public file-access probes from the dashboard
+- **Dark mode** — system-aware theme with admin controls
+- **JWT authentication** — single-admin login with `HttpOnly` session cookie
+- **Security hardening** — file blocklist, login rate limit, decrypt rate limit, path traversal protection, and HTTP security headers
+
+## Public URL Patterns
+
+- Images: `https://yourdomain/images/<filename>`
+- Public files: `https://yourdomain/files/<filename>`
+- Encrypted files: `https://yourdomain/f/<id>`
 
 ## Requirements
 
@@ -42,7 +50,7 @@ cp .env.example .env
 |---|---|---|
 | `NUXT_CDN_USERNAME` | Admin login username | `admin` |
 | `NUXT_CDN_PASSWORD` | Admin login password | `your_secure_password` |
-| `NUXT_JWT_SECRET` | Secret key for JWT signing (min 32 chars) | `a_random_64_char_hex_string` |
+| `NUXT_JWT_SECRET` | Secret key for JWT signing (minimum 32 chars recommended) | `a_random_64_char_hex_string` |
 | `NUXT_JWT_EXPIRY` | Session duration | `7d` |
 | `NUXT_PUBLIC_BASE_URL` | Public base URL of the site | `https://cdn.yourdomain.com` |
 
@@ -52,7 +60,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Server starts at `http://localhost:3000`. Environment variables are automatically loaded from `.env`.
+The app starts at `http://localhost:3000`. Nuxt loads environment variables automatically from `.env`.
 
 ## Production
 
@@ -64,62 +72,125 @@ npm run build
 
 ### Run
 
-Use the provided startup script, which loads `.env` before starting the server:
+Use the provided startup script so `.env` is loaded before the Nuxt server starts:
 
 ```bash
 ./start.sh
 ```
 
-> **Note:** `node .output/server/index.mjs` directly does **not** auto-load `.env`. Always use `start.sh` in production.
+> `node .output/server/index.mjs` does not auto-load `.env`. Use `start.sh` for production unless you inject the environment yourself.
+
+## Admin Dashboard
+
+After login, the admin dashboard provides:
+
+- `Images` tab for converted image uploads
+- `Files` tab for direct public file uploads
+- `Encrypt` tab for passphrase-protected file uploads
+- `Logs` page for audit events and exportable admin logs
 
 ## File Structure
 
-```
+```text
+app/
+  components/ThemeToggle.vue     # Theme control
+  composables/useTheme.ts        # Light/dark/system theme state
+  middleware/auth.ts             # Client-side anti-flicker auth guard
+  pages/login.vue                # Admin login page
+  pages/index.vue                # Main dashboard (Images / Files / Encrypt)
+  pages/logs.vue                 # Admin audit log viewer
+  pages/f/[id].vue               # Public encrypted-file access page
+
 server/
-  middleware/auth.ts          # JWT validation on protected routes
-  utils/auth.ts               # signToken / verifyToken (jose)
-  utils/db.ts                 # JSON metadata store with write mutex
-  utils/storage.ts            # Path helpers with traversal protection
-  utils/rateLimit.ts          # In-memory login rate limiter
+  middleware/auth.ts             # Protects admin routes and admin APIs
+  utils/auth.ts                  # signToken / verifyToken (jose)
+  utils/db.ts                    # JSON metadata store with write mutex
+  utils/storage.ts               # Path helpers with traversal protection
+  utils/encryption.ts            # AES-256-GCM file encryption helpers
+  utils/rateLimit.ts             # Login + decrypt rate limits / busy guards
+  utils/audit.ts                 # Audit log write/read/rotation helpers
   api/auth/login.post.ts
   api/auth/logout.post.ts
   api/images/index.get.ts
-  api/images/upload.post.ts   # Sharp conversion, 20 MB limit
+  api/images/upload.post.ts
   api/images/[id].delete.ts
   api/files/index.get.ts
-  api/files/upload.post.ts    # Any file type (blocklist applied), 200 MB limit
+  api/files/upload.post.ts
   api/files/[id].delete.ts
-app/
-  middleware/auth.ts          # Client-side anti-flicker guard
-  pages/login.vue
-  pages/index.vue             # Dashboard (Images + Files tabs)
+  api/file-access/[id].get.ts    # Public encrypted-file metadata page data
+  api/file-access/[id].post.ts   # Passphrase submit + decrypt download
+  api/audit/logs.get.ts          # Protected admin audit list endpoint
+  api/audit/logs/export.get.ts   # Protected admin audit export endpoint
+
 public/
-  images/                     # Served at /images/...
-  files/                      # Served at /files/...
+  images/                        # Public images served at /images/...
+  files/                         # Public files served at /files/...
+
+storage/
+  files/                         # Encrypted files (not publicly served)
+
 data/
-  images.json                 # Image metadata (gitignored)
-  files.json                  # File metadata (gitignored)
+  images.json                    # Image metadata (gitignored)
+  files.json                     # File metadata (gitignored)
+  audit.log                      # Audit log + rotated copies
 ```
+
+## Storage Model
+
+| Path | Purpose |
+|---|---|
+| `public/images/` | Converted image output |
+| `public/files/` | Public file uploads |
+| `storage/files/` | Encrypted file payloads |
+| `data/images.json` | Image metadata |
+| `data/files.json` | File metadata |
+| `data/audit.log` | Audit trail for decrypt failures and public probes |
 
 ## Security
 
 | Measure | Detail |
 |---|---|
-| Authentication | JWT in `HttpOnly` cookie (`cdn_session`), `SameSite=strict` |
-| CSRF | Blocked by `SameSite=strict` cookies |
-| Brute force | 10 failed login attempts per IP locks out for 15 minutes |
-| File upload | Blocklist of 30+ dangerous extensions (`.php`, `.sh`, `.exe`, `.html`, `.js`, etc.) |
-| SVG | Blocked on image upload (can contain inline scripts) |
-| Path traversal | `imagePath()`/`filePath()` verify resolved path stays within directory |
-| HTTP headers | `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` |
-| HSTS | Add `Strict-Transport-Security` header once TLS is confirmed on your domain |
+| Authentication | JWT stored in `cdn_session` (`HttpOnly`, `SameSite=strict`) |
+| Client auth UX | `cdn_auth` flag cookie avoids client-side flicker after login |
+| Login brute force protection | `10` failed login attempts per IP locks out for `15` minutes |
+| Decrypt brute force protection | Failed decrypt attempts are rate-limited per `IP + fileId` |
+| Decrypt resource guard | Busy guard limits concurrent decrypt work globally and per file |
+| Encrypted storage | Protected files are stored in `storage/files/`, never exposed directly from `public/` |
+| File upload protection | Dangerous file extensions and MIME types are blocked for public uploads |
+| SVG protection | SVG is blocked for image uploads |
+| Path traversal protection | `imagePath()`, `filePath()`, and `privateFilePath()` enforce safe resolved paths |
+| Audit logging | Failed decrypt attempts, busy decrypts, and public metadata probes are logged to `data/audit.log` |
+| HTTP headers | `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` are set in app config |
+| HSTS | Add `Strict-Transport-Security` once TLS is confirmed on your deployment |
+
+## Audit Logs
+
+The admin `Logs` page shows recent security-relevant events and supports filter + export.
+
+Events currently logged include:
+
+- Failed decrypt attempts
+- Decrypt requests blocked by rate limiting
+- Decrypt requests rejected because the file is busy
+- Public metadata probes to `/api/file-access/:id`
+
+Audit logs are rotated automatically when the active file grows too large.
 
 ## Kubernetes / Docker
 
-- `sharp` is configured as an external dependency (`nitro.externals.external`) — do **not** bundle it
-- Run `npm install --production` in your image to preserve Sharp's native binaries
-- Mount a persistent volume to `/app/public/images`, `/app/public/files`, and `/app/data`
-- Pass all `NUXT_*` env vars via Kubernetes `Secret` or `ConfigMap`
+- `sharp` is configured as an external dependency. Do not bundle it away in production.
+- Run `npm install --production` in your image so Sharp native binaries remain available.
+- Mount persistent volumes for:
+  - `/app/public/images`
+  - `/app/public/files`
+  - `/app/data`
+  - `/app/storage`
+- Pass all `NUXT_*` variables through Kubernetes `Secret` / `ConfigMap` or your runtime secret manager.
+
+## Notes
+
+- No automated test suite is configured in this repository.
+- The decrypt and audit protections are in-memory / local-file based. If you scale to multiple instances, use shared storage and a shared rate-limit store.
 
 ## License
 

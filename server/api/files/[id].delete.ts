@@ -1,6 +1,6 @@
 import { unlink } from 'node:fs/promises'
 import { deleteFile } from '../../utils/db'
-import { filePath } from '../../utils/storage'
+import { filePath, privateFilePath } from '../../utils/storage'
 
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -9,7 +9,11 @@ export default defineEventHandler(async (event) => {
   const record = await deleteFile(id)
   if (!record) throw createError({ statusCode: 404, message: 'File not found' })
 
-  await unlink(filePath(record.filename)).catch(() => {})
+  const targetPath = record.encryption
+    ? privateFilePath(record.filename)
+    : filePath(record.filename)
+
+  await unlink(targetPath).catch(() => {})
 
   return { success: true, deleted: id }
 })

@@ -6,8 +6,10 @@ export default defineEventHandler(async (event) => {
 
   const isProtected =
     path === '/' ||
+    path === '/logs' ||
     path.startsWith('/api/images') ||
-    path.startsWith('/api/files')
+    path.startsWith('/api/files') ||
+    path.startsWith('/api/audit')
 
   if (!isProtected) return
 

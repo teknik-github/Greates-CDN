@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "c7f34aed-b778-4e50-a206-0f3ed715771c",
+    "originalName": "Screenshot 2026-04-12 033456.png",
+    "slug": "1775955098324-3aabbc",
+    "filename": "1775955098324-3aabbc.enc",
+    "mimeType": "image/png",
+    "size": 4314,
+    "uploadedAt": "2026-04-12T00:51:38.370Z",
+    "encryption": {
+      "salt": "XosXEJevHOyL1xBrSuehuw==",
+      "iv": "ihAykb0ZlFoKAQY5",
+      "authTag": "TJ21+Axt7wT22SIdxoEAOA=="
+    }
+  }
+]

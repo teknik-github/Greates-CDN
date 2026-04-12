@@ -1,5 +1,5 @@
 export default defineNuxtRouteMiddleware((to) => {
-  if (to.path !== '/' && !to.path.startsWith('/dashboard')) return
+  if (to.path !== '/' && to.path !== '/logs' && !to.path.startsWith('/dashboard')) return
 
   if (import.meta.client) {
     const hasCookie = document.cookie.includes('cdn_auth=')

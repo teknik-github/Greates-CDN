@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto'
 
 export const IMAGES_DIR = resolve(process.cwd(), 'public/images')
 export const FILES_DIR = resolve(process.cwd(), 'public/files')
+export const PRIVATE_FILES_DIR = resolve(process.cwd(), 'storage/files')
 
 export function generateSlug(): string {
   const timestamp = Date.now()
@@ -30,6 +31,18 @@ export async function ensureFilesDir(): Promise<void> {
 export function filePath(filename: string): string {
   const resolved = resolve(FILES_DIR, filename)
   if (!resolved.startsWith(FILES_DIR + '/')) {
+    throw new Error('Invalid filename: path traversal detected')
+  }
+  return resolved
+}
+
+export async function ensurePrivateFilesDir(): Promise<void> {
+  await mkdir(PRIVATE_FILES_DIR, { recursive: true })
+}
+
+export function privateFilePath(filename: string): string {
+  const resolved = resolve(PRIVATE_FILES_DIR, filename)
+  if (!resolved.startsWith(PRIVATE_FILES_DIR + '/')) {
     throw new Error('Invalid filename: path traversal detected')
   }
   return resolved

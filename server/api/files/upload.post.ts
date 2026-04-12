@@ -1,7 +1,8 @@
 import { writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { generateSlug, ensureFilesDir, filePath } from '../../utils/storage'
+import { generateSlug, ensureFilesDir, ensurePrivateFilesDir, filePath, privateFilePath } from '../../utils/storage'
 import { saveFile, type FileRecord } from '../../utils/db'
+import { encryptBuffer, MIN_PASSPHRASE_LENGTH } from '../../utils/encryption'
 
 const MAX_FILE_SIZE = 200 * 1024 * 1024 // 200 MB
 
@@ -36,11 +37,19 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Field "file" is required' })
   }
 
+  const passphrase = parts.find(p => p.name === 'passphrase')?.data?.toString().trim() ?? ''
+  const shouldEncrypt = passphrase.length > 0
+
   if (filePart.data.byteLength > MAX_FILE_SIZE) {
     throw createError({ statusCode: 413, message: 'File size exceeds 200 MB limit' })
   }
 
-  await ensureFilesDir()
+  if (shouldEncrypt && passphrase.length < MIN_PASSPHRASE_LENGTH) {
+    throw createError({
+      statusCode: 400,
+      message: `Passphrase must be at least ${MIN_PASSPHRASE_LENGTH} characters`,
+    })
+  }
 
   const slug = generateSlug()
   const id = randomUUID()
@@ -55,10 +64,18 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'File type not allowed' })
   }
 
-  const filename = `${slug}.${ext}`
-  const outputPath = filePath(filename)
+  const filename = shouldEncrypt ? `${slug}.enc` : `${slug}.${ext}`
 
-  await writeFile(outputPath, filePart.data)
+  let encryption: FileRecord['encryption']
+  if (shouldEncrypt) {
+    await ensurePrivateFilesDir()
+    const encryptedFile = await encryptBuffer(filePart.data, passphrase)
+    encryption = encryptedFile.metadata
+    await writeFile(privateFilePath(filename), encryptedFile.encrypted)
+  } else {
+    await ensureFilesDir()
+    await writeFile(filePath(filename), filePart.data)
+  }
 
   const record: FileRecord = {
     id,
@@ -68,6 +85,7 @@ export default defineEventHandler(async (event) => {
     mimeType: filePart.type ?? 'application/octet-stream',
     size: filePart.data.byteLength,
     uploadedAt: new Date().toISOString(),
+    encryption,
   }
 
   await saveFile(record)

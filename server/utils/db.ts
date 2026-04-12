@@ -1,5 +1,6 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import type { FileEncryptionMetadata } from './encryption'
 
 const DATA_DIR = resolve(process.cwd(), 'data')
 const DB_PATH = resolve(DATA_DIR, 'images.json')
@@ -69,6 +70,7 @@ export interface FileRecord {
   mimeType: string
   size: number
   uploadedAt: string
+  encryption?: FileEncryptionMetadata
 }
 
 export async function getFiles(): Promise<FileRecord[]> {
@@ -87,6 +89,11 @@ export async function saveFile(record: FileRecord): Promise<void> {
     files.unshift(record)
     await writeFile(FILES_DB_PATH, JSON.stringify(files, null, 2))
   })
+}
+
+export async function getFileById(id: string): Promise<FileRecord | null> {
+  const files = await getFiles()
+  return files.find(file => file.id === id) ?? null
 }
 
 export async function deleteFile(id: string): Promise<FileRecord | null> {

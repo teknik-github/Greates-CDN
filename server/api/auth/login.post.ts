@@ -1,12 +1,19 @@
 import { signToken } from '../../utils/auth'
-import { checkLoginRateLimit, recordFailedLogin, clearLoginAttempts } from '../../utils/rateLimit'
+import { checkLoginRateLimit, recordFailedLogin, clearLoginAttempts, getLoginRetryAfterSeconds } from '../../utils/rateLimit'
 
 export default defineEventHandler(async (event) => {
   const ip = getRequestHeader(event, 'x-forwarded-for')?.split(',')[0].trim()
     ?? getRequestIP(event)
     ?? 'unknown'
 
-  checkLoginRateLimit(ip)
+  try {
+    checkLoginRateLimit(ip)
+  } catch (error) {
+    if (error && typeof error === 'object' && 'statusCode' in error && error.statusCode === 429) {
+      setHeader(event, 'Retry-After', String(getLoginRetryAfterSeconds(ip)))
+    }
+    throw error
+  }
 
   const body = await readBody<{ username: string; password: string }>(event)
   const config = useRuntimeConfig(event)

@@ -12,6 +12,7 @@ node_modules
 # Logs
 logs
 *.log
+*.log.*
 
 # Misc
 .DS_Store
@@ -25,5 +26,7 @@ logs
 
 # CDN data (image metadata - not committed, recreated at runtime)
 data/images.json
+data/files.json
+storage/
 
 .claude
