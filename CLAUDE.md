@@ -8,7 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev        # dev server on :3000
 npm run build      # production build to .output/
 npm run preview    # preview production build
-node .output/server/index.mjs  # run production build directly
+npm start          # run production build with .env bootstrap
+node .output/server/index.mjs  # run production build directly (does not auto-load .env)
 ```
 
 No test suite is configured.
@@ -69,3 +70,10 @@ NUXT_PUBLIC_BASE_URL=https://cdn.example.com
 ## Kubernetes Deployment
 
 Volumes that must be mounted: `/app/public/images`, `/app/public/files`, `/app/data`, `/app/storage`
+
+## Runtime Startup
+
+- `scripts/start.mjs` loads `.env` from the project root before importing `.output/server/index.mjs`
+- `npm start` and `./start.sh` both use that bootstrap script
+- `ecosystem.config.cjs` runs the same bootstrap path for PM2
+- Existing environment variables from the host process are not overridden by `.env`

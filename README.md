@@ -72,13 +72,43 @@ npm run build
 
 ### Run
 
-Use the provided startup script so `.env` is loaded before the Nuxt server starts:
+Use either `npm start` or the provided startup script. Both load `.env` before the built Nuxt server starts.
+
+```bash
+npm start
+```
+
+or:
 
 ```bash
 ./start.sh
 ```
 
-> `node .output/server/index.mjs` does not auto-load `.env`. Use `start.sh` for production unless you inject the environment yourself.
+> `node .output/server/index.mjs` does not auto-load `.env`. Use `npm start` / `start.sh` unless your deployment platform injects environment variables itself.
+
+### PM2
+
+If you run the app with PM2, use the included ecosystem file so the server starts through `scripts/start.mjs` and reads `.env` automatically:
+
+```bash
+pm2 start ecosystem.config.cjs
+```
+
+Common PM2 commands:
+
+```bash
+pm2 restart greates-cdn
+pm2 logs greates-cdn
+pm2 save
+```
+
+## Recent Updates
+
+- Added encrypted file sharing with passphrase-protected access pages
+- Added admin audit logs with filter + export
+- Added dark mode with system-aware theme support
+- Added production bootstrap script so the built server can read `.env` automatically
+- Added PM2 ecosystem config for production startup
 
 ## Admin Dashboard
 

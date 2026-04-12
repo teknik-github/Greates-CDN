@@ -28,7 +28,6 @@ async function handleLogin() {
   <div class="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-brand-50 via-white to-slate-100 px-4 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
     <div class="pointer-events-none absolute left-[-6rem] top-[-5rem] h-64 w-64 rounded-full bg-brand-200/50 blur-3xl dark:bg-brand-500/10" />
     <div class="pointer-events-none absolute bottom-[-7rem] right-[-4rem] h-72 w-72 rounded-full bg-sky-200/40 blur-3xl dark:bg-cyan-500/10" />
-    <ThemeToggle class="fixed top-4 right-4 z-10" />
 
     <div class="relative z-10 w-full max-w-md">
       <div class="text-center mb-8">
