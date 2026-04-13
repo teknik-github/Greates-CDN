@@ -622,7 +622,7 @@ const formatBadgeClass: Record<string, string> = {
             <div class="relative aspect-video bg-slate-100 overflow-hidden dark:bg-slate-800">
               <img
                 v-if="image.formats[0]"
-                :src="`/images/${image.formats[0].filename}`"
+                :src="getImageUrl(image.formats[0].filename)"
                 :alt="image.originalName"
                 class="w-full h-full object-cover"
                 loading="lazy"
@@ -683,7 +683,7 @@ const formatBadgeClass: Record<string, string> = {
                 </button>
                 <a
                   v-if="image.formats[0]"
-                  :href="`/images/${image.formats[0].filename}`"
+                  :href="getImageUrl(image.formats[0].filename)"
                   :download="image.formats[0].filename"
                   class="flex items-center justify-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-all duration-200 ease-out hover:-translate-y-px hover:bg-slate-200 hover:text-slate-900 active:translate-y-0 active:scale-[0.98] dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:hover:text-white"
                   title="Download image"
@@ -807,7 +807,7 @@ const formatBadgeClass: Record<string, string> = {
                 {{ copiedFileId === file.id ? 'Copied!' : 'Copy URL' }}
               </button>
               <a
-                :href="`/files/${file.filename}`"
+                :href="getFileUrl(file.filename)"
                 :download="file.originalName"
                 class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition-all duration-200 ease-out hover:-translate-y-px hover:bg-brand-50 hover:text-brand-600 active:translate-y-0 active:scale-[0.96] dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-brand-300"
                 title="Download file"

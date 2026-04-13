@@ -1,6 +1,7 @@
 import { signToken } from '../../utils/auth'
 import { logAuthLoginAttempt } from '../../utils/audit'
 import { checkLoginRateLimit, recordFailedLogin, clearLoginAttempts, getLoginRetryAfterSeconds } from '../../utils/rateLimit'
+import { isSecureRequest } from '../../utils/request'
 
 async function auditLoginAttempt(
   event: Parameters<typeof defineEventHandler>[0],
@@ -59,13 +60,13 @@ export default defineEventHandler(async (event) => {
     config.jwtExpiry,
   )
 
-  const isProduction = process.env.NODE_ENV === 'production'
+  const secureCookies = isSecureRequest(event)
   const maxAge = 60 * 60 * 24 * 7
 
   // HttpOnly JWT — the real security token, not readable by JS
   setCookie(event, 'cdn_session', token, {
     httpOnly: true,
-    secure: isProduction,
+    secure: secureCookies,
     sameSite: 'strict',
     maxAge,
     path: '/',
@@ -74,7 +75,7 @@ export default defineEventHandler(async (event) => {
   // JS-readable flag cookie — lets client middleware know the user is logged in
   setCookie(event, 'cdn_auth', '1', {
     httpOnly: false,
-    secure: isProduction,
+    secure: secureCookies,
     sameSite: 'strict',
     maxAge,
     path: '/',

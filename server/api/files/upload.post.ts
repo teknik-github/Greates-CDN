@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { logAssetChange } from '../../utils/audit'
-import { generateSlug, ensureFilesDir, ensurePrivateFilesDir, filePath, privateFilePath } from '../../utils/storage'
+import { generateSlug, ensureFilesDir, ensurePrivateFilesDir, fileWritePaths, privateFilePath } from '../../utils/storage'
 import { saveFile, type FileRecord } from '../../utils/db'
 import { encryptBuffer, MIN_PASSPHRASE_LENGTH } from '../../utils/encryption'
 
@@ -101,7 +101,7 @@ export default defineEventHandler(async (event) => {
       await writeFile(privateFilePath(filename), encryptedFile.encrypted)
     } else {
       await ensureFilesDir()
-      await writeFile(filePath(filename), filePart.data)
+      await Promise.all(fileWritePaths(filename).map(path => writeFile(path, filePart.data)))
     }
 
     const record: FileRecord = {

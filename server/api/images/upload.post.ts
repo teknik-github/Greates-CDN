@@ -2,7 +2,7 @@ import sharp from 'sharp'
 import { writeFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { logAssetChange } from '../../utils/audit'
-import { generateSlug, ensureImagesDir, imagePath } from '../../utils/storage'
+import { generateSlug, ensureImagesDir, imageWritePaths } from '../../utils/storage'
 import { saveImage, type ImageRecord } from '../../utils/db'
 
 type TargetFormat = 'webp' | 'avif' | 'jpeg' | 'png'
@@ -70,7 +70,7 @@ export default defineEventHandler(async (event) => {
     const originalName = filePart.filename ?? 'upload'
     const ext = format === 'jpeg' ? 'jpg' : format
     const filename = `${slug}.${ext}`
-    const outputPath = imagePath(filename)
+    const outputPaths = imageWritePaths(filename)
 
     const sharpInstance = sharp(filePart.data)
     let converted: Buffer
@@ -84,7 +84,7 @@ export default defineEventHandler(async (event) => {
       converted = await sharpInstance.png({ compressionLevel: 8 }).toBuffer()
     }
 
-    await writeFile(outputPath, converted)
+    await Promise.all(outputPaths.map(path => writeFile(path, converted)))
 
     const record: ImageRecord = {
       id,

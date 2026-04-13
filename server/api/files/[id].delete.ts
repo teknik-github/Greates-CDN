@@ -1,7 +1,7 @@
 import { unlink } from 'node:fs/promises'
 import { logAssetChange } from '../../utils/audit'
 import { deleteFile } from '../../utils/db'
-import { filePath, privateFilePath } from '../../utils/storage'
+import { fileWritePaths, privateFilePath } from '../../utils/storage'
 
 function auditErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === 'object') {
@@ -39,10 +39,10 @@ export default defineEventHandler(async (event) => {
     encrypted = Boolean(record.encryption)
 
     const targetPath = record.encryption
-      ? privateFilePath(record.filename)
-      : filePath(record.filename)
+      ? [privateFilePath(record.filename)]
+      : fileWritePaths(record.filename)
 
-    await unlink(targetPath).catch(() => {})
+    await Promise.allSettled(targetPath.map(path => unlink(path)))
 
     await logAssetChange({
       ip,

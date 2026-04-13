@@ -1,7 +1,7 @@
 import { unlink } from 'node:fs/promises'
 import { logAssetChange } from '../../utils/audit'
 import { deleteImage } from '../../utils/db'
-import { imagePath } from '../../utils/storage'
+import { imageWritePaths } from '../../utils/storage'
 
 function auditErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === 'object') {
@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
     assetName = record.originalName
 
     await Promise.allSettled(
-      record.formats.map(f => unlink(imagePath(f.filename))),
+      record.formats.flatMap(f => imageWritePaths(f.filename)).map(path => unlink(path)),
     )
 
     await logAssetChange({

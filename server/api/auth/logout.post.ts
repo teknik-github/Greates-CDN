@@ -1,10 +1,13 @@
 import { logAuthLoginAttempt } from '../../utils/audit'
 import { verifyToken } from '../../utils/auth'
+import { isSecureRequest } from '../../utils/request'
 
 export default defineEventHandler(async (event) => {
   const ip = getRequestHeader(event, 'x-forwarded-for')?.split(',')[0].trim()
     ?? getRequestIP(event)
     ?? 'unknown'
+
+  const secureCookies = isSecureRequest(event)
 
   let username: string | undefined
   const token = parseCookies(event)['cdn_session']
@@ -19,8 +22,8 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  deleteCookie(event, 'cdn_session', { path: '/' })
-  deleteCookie(event, 'cdn_auth', { path: '/' })
+  deleteCookie(event, 'cdn_session', { path: '/', secure: secureCookies, sameSite: 'strict' })
+  deleteCookie(event, 'cdn_auth', { path: '/', secure: secureCookies, sameSite: 'strict' })
 
   await logAuthLoginAttempt({
     ip,
