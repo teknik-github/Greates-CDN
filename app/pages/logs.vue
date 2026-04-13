@@ -3,12 +3,29 @@ definePageMeta({ middleware: ['auth'] })
 
 interface AuditEntry {
   timestamp: string
-  type: 'decrypt_failed' | 'file_access_probe'
+  type: 'decrypt_failed' | 'file_access_probe' | 'auth_login' | 'asset_change'
   ip: string
   fileId: string
+  username?: string
+  assetName?: string
+  details?: string
   userAgent?: string
   reason?: 'missing_passphrase' | 'invalid_passphrase_format' | 'invalid_passphrase' | 'rate_limited' | 'busy'
   outcome?: 'ok' | 'not_found' | 'not_protected'
+  authOutcome?: 'success' | 'failed' | 'rate_limited' | 'logout'
+  assetAction?:
+    | 'image_uploaded'
+    | 'image_upload_failed'
+    | 'image_deleted'
+    | 'image_delete_failed'
+    | 'public_file_uploaded'
+    | 'public_file_upload_failed'
+    | 'public_file_deleted'
+    | 'public_file_delete_failed'
+    | 'encrypted_file_uploaded'
+    | 'encrypted_file_upload_failed'
+    | 'encrypted_file_deleted'
+    | 'encrypted_file_delete_failed'
 }
 
 interface AuditLogResponse {
@@ -17,14 +34,14 @@ interface AuditLogResponse {
   maxBytes: number
   filters?: {
     type?: AuditEntry['type']
-    reason?: AuditEntry['reason'] | AuditEntry['outcome']
+    reason?: AuditEntry['reason'] | AuditEntry['outcome'] | AuditEntry['authOutcome']
     fileId?: string
   }
 }
 
 const limit = ref(200)
 const typeFilter = ref<'all' | AuditEntry['type']>('all')
-const reasonFilter = ref<'all' | NonNullable<AuditEntry['reason']> | NonNullable<AuditEntry['outcome']>>('all')
+const reasonFilter = ref<'all' | NonNullable<AuditEntry['reason']> | NonNullable<AuditEntry['outcome']> | NonNullable<AuditEntry['authOutcome']>>('all')
 const fileIdFilter = ref('')
 
 const query = computed(() => ({
@@ -60,17 +77,34 @@ const exportUrl = computed(() => {
 
 const typeOptions = [
   { value: 'all', label: 'All types' },
+  { value: 'auth_login', label: 'Auth activity' },
+  { value: 'asset_change', label: 'Asset changes' },
   { value: 'decrypt_failed', label: 'Decrypt failures' },
   { value: 'file_access_probe', label: 'Metadata probes' },
 ] as const
 
 const reasonOptions = [
   { value: 'all', label: 'All reasons' },
+  { value: 'success', label: 'Login Success' },
+  { value: 'failed', label: 'Login Failed' },
+  { value: 'logout', label: 'Logout' },
   { value: 'missing_passphrase', label: 'Missing Passphrase' },
   { value: 'invalid_passphrase_format', label: 'Invalid Passphrase Format' },
   { value: 'invalid_passphrase', label: 'Invalid Passphrase' },
   { value: 'rate_limited', label: 'Rate Limited' },
   { value: 'busy', label: 'Decrypt Busy' },
+  { value: 'image_uploaded', label: 'Image Uploaded' },
+  { value: 'image_upload_failed', label: 'Image Upload Failed' },
+  { value: 'image_deleted', label: 'Image Deleted' },
+  { value: 'image_delete_failed', label: 'Image Delete Failed' },
+  { value: 'public_file_uploaded', label: 'Public File Uploaded' },
+  { value: 'public_file_upload_failed', label: 'Public File Upload Failed' },
+  { value: 'public_file_deleted', label: 'Public File Deleted' },
+  { value: 'public_file_delete_failed', label: 'Public File Delete Failed' },
+  { value: 'encrypted_file_uploaded', label: 'Encrypted File Uploaded' },
+  { value: 'encrypted_file_upload_failed', label: 'Encrypted File Upload Failed' },
+  { value: 'encrypted_file_deleted', label: 'Encrypted File Deleted' },
+  { value: 'encrypted_file_delete_failed', label: 'Encrypted File Delete Failed' },
   { value: 'ok', label: 'Metadata Viewed' },
   { value: 'not_found', label: 'Probe Not Found' },
   { value: 'not_protected', label: 'Probe Not Protected' },
@@ -96,6 +130,47 @@ function formatBytes(bytes: number) {
 }
 
 function reasonLabel(entry: AuditEntry) {
+  if (entry.type === 'auth_login') {
+    return entry.authOutcome === 'success'
+      ? 'Login Success'
+      : entry.authOutcome === 'rate_limited'
+        ? 'Login Rate Limited'
+        : entry.authOutcome === 'logout'
+          ? 'Logout'
+        : 'Login Failed'
+  }
+
+  if (entry.type === 'asset_change') {
+    switch (entry.assetAction) {
+      case 'image_uploaded':
+        return 'Image Uploaded'
+      case 'image_upload_failed':
+        return 'Image Upload Failed'
+      case 'image_deleted':
+        return 'Image Deleted'
+      case 'image_delete_failed':
+        return 'Image Delete Failed'
+      case 'public_file_uploaded':
+        return 'Public File Uploaded'
+      case 'public_file_upload_failed':
+        return 'Public File Upload Failed'
+      case 'public_file_deleted':
+        return 'Public File Deleted'
+      case 'public_file_delete_failed':
+        return 'Public File Delete Failed'
+      case 'encrypted_file_uploaded':
+        return 'Encrypted File Uploaded'
+      case 'encrypted_file_upload_failed':
+        return 'Encrypted File Upload Failed'
+      case 'encrypted_file_deleted':
+        return 'Encrypted File Deleted'
+      case 'encrypted_file_delete_failed':
+        return 'Encrypted File Delete Failed'
+      default:
+        return 'Asset Changed'
+    }
+  }
+
   if (entry.type === 'file_access_probe') {
     return entry.outcome === 'ok'
       ? 'Metadata Viewed'
@@ -121,6 +196,32 @@ function reasonLabel(entry: AuditEntry) {
 }
 
 function reasonBadgeClass(entry: AuditEntry) {
+  if (entry.type === 'auth_login') {
+    return entry.authOutcome === 'success'
+      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-1 dark:ring-emerald-500/20'
+      : entry.authOutcome === 'rate_limited'
+        ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-1 dark:ring-amber-500/20'
+        : entry.authOutcome === 'logout'
+          ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:ring-1 dark:ring-slate-700'
+        : 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200 dark:ring-1 dark:ring-red-500/20'
+  }
+
+  if (entry.type === 'asset_change') {
+    if (entry.assetAction?.includes('failed')) {
+      return 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200 dark:ring-1 dark:ring-red-500/20'
+    }
+
+    if (entry.assetAction?.includes('deleted')) {
+      return 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-200 dark:ring-1 dark:ring-rose-500/20'
+    }
+
+    if (entry.assetAction?.includes('encrypted')) {
+      return 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-200 dark:ring-1 dark:ring-violet-500/20'
+    }
+
+    return 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200 dark:ring-1 dark:ring-sky-500/20'
+  }
+
   if (entry.type === 'file_access_probe') {
     return entry.outcome === 'ok'
       ? 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200 dark:ring-1 dark:ring-sky-500/20'
@@ -136,6 +237,43 @@ function reasonBadgeClass(entry: AuditEntry) {
   }
 
   return 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200 dark:ring-1 dark:ring-red-500/20'
+}
+
+function entryTypeLabel(entry: AuditEntry) {
+  if (entry.type === 'auth_login') return 'Auth'
+  if (entry.type === 'asset_change') return 'Asset'
+  if (entry.type === 'decrypt_failed') return 'Decrypt'
+  return 'Probe'
+}
+
+function targetLabel(entry: AuditEntry) {
+  if (entry.type === 'auth_login') return 'Username'
+  if (entry.type === 'asset_change') return 'Asset'
+  return 'File ID'
+}
+
+function targetValue(entry: AuditEntry) {
+  if (entry.type === 'auth_login') {
+    return entry.username ?? 'unknown'
+  }
+
+  if (entry.type === 'asset_change') {
+    return entry.assetName ?? entry.fileId
+  }
+
+  return entry.fileId
+}
+
+function targetMeta(entry: AuditEntry) {
+  if (entry.type === 'asset_change' && entry.assetName) {
+    return entry.fileId
+  }
+
+  return undefined
+}
+
+function detailText(entry: AuditEntry) {
+  return entry.details
 }
 </script>
 
@@ -225,12 +363,12 @@ function reasonBadgeClass(entry: AuditEntry) {
               </label>
 
               <label class="block">
-                <span class="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">File ID</span>
+                <span class="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">File ID / Username</span>
                 <input
                   v-model="fileIdFilter"
                   type="text"
                   class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-700 transition focus:outline-none focus:ring-2 focus:ring-brand-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
-                  placeholder="Search by file id"
+                  placeholder="Search by file id, username, or asset"
                 />
               </label>
 
@@ -318,7 +456,7 @@ function reasonBadgeClass(entry: AuditEntry) {
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                      {{ entry.type === 'decrypt_failed' ? 'Decrypt' : 'Probe' }}
+                      {{ entryTypeLabel(entry) }}
                     </span>
                     <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="reasonBadgeClass(entry)">
                       {{ reasonLabel(entry) }}
@@ -327,8 +465,9 @@ function reasonBadgeClass(entry: AuditEntry) {
 
                   <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.75fr)]">
                     <div class="rounded-xl border border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
-                      <p class="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">File ID</p>
-                      <p class="mt-2 break-all font-mono text-xs text-slate-700 dark:text-slate-200">{{ entry.fileId }}</p>
+                      <p class="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{{ targetLabel(entry) }}</p>
+                      <p class="mt-2 break-all font-mono text-xs text-slate-700 dark:text-slate-200">{{ targetValue(entry) }}</p>
+                      <p v-if="targetMeta(entry)" class="mt-1 break-all text-[11px] text-slate-500 dark:text-slate-400">ID: {{ targetMeta(entry) }}</p>
                     </div>
                     <div class="rounded-xl border border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
                       <p class="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">IP Address</p>
@@ -336,10 +475,14 @@ function reasonBadgeClass(entry: AuditEntry) {
                     </div>
                   </div>
 
-                  <div class="mt-3 rounded-xl border border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
-                    <p class="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">User Agent</p>
-                    <p class="mt-2 break-all text-xs text-slate-600 dark:text-slate-300">{{ entry.userAgent ?? 'unknown' }}</p>
-                  </div>
+                <div class="mt-3 rounded-xl border border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
+                  <p class="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">User Agent</p>
+                  <p class="mt-2 break-all text-xs text-slate-600 dark:text-slate-300">{{ entry.userAgent ?? 'unknown' }}</p>
+                  <template v-if="detailText(entry)">
+                    <p class="mt-3 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Details</p>
+                    <p class="mt-2 break-all text-xs text-slate-600 dark:text-slate-300">{{ detailText(entry) }}</p>
+                  </template>
+                </div>
                 </div>
 
                 <div class="shrink-0 rounded-xl border border-slate-100 bg-white px-4 py-3 text-left dark:border-slate-800 dark:bg-slate-900/80 lg:min-w-[220px] lg:text-right">

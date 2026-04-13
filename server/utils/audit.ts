@@ -7,10 +7,24 @@ const MAX_FIELD_LENGTH = 512
 const MAX_AUDIT_LOG_BYTES = 1024 * 1024
 const MAX_ROTATED_AUDIT_FILES = 5
 
-export type AuditEntryType = 'decrypt_failed' | 'file_access_probe'
+export type AuditEntryType = 'decrypt_failed' | 'file_access_probe' | 'auth_login' | 'asset_change'
 export type FailedDecryptReason = 'missing_passphrase' | 'invalid_passphrase_format' | 'invalid_passphrase' | 'rate_limited' | 'busy'
 export type FileAccessProbeOutcome = 'ok' | 'not_found' | 'not_protected'
-export type AuditReasonFilter = FailedDecryptReason | FileAccessProbeOutcome
+export type AuthLoginOutcome = 'success' | 'failed' | 'rate_limited' | 'logout'
+export type AssetChangeAction =
+  | 'image_uploaded'
+  | 'image_upload_failed'
+  | 'image_deleted'
+  | 'image_delete_failed'
+  | 'public_file_uploaded'
+  | 'public_file_upload_failed'
+  | 'public_file_deleted'
+  | 'public_file_delete_failed'
+  | 'encrypted_file_uploaded'
+  | 'encrypted_file_upload_failed'
+  | 'encrypted_file_deleted'
+  | 'encrypted_file_delete_failed'
+export type AuditReasonFilter = FailedDecryptReason | FileAccessProbeOutcome | AuthLoginOutcome | AssetChangeAction
 
 let writeLock = Promise.resolve()
 
@@ -69,9 +83,14 @@ export interface AuditEntry {
   type: AuditEntryType
   ip: string
   fileId: string
+  username?: string
+  assetName?: string
+  details?: string
   userAgent?: string
   reason?: FailedDecryptReason
   outcome?: FileAccessProbeOutcome
+  authOutcome?: AuthLoginOutcome
+  assetAction?: AssetChangeAction
 }
 
 export interface AuditFilters {
@@ -94,13 +113,36 @@ export interface FileAccessProbeAuditEvent {
   userAgent?: string | null
 }
 
+export interface AuthLoginAuditEvent {
+  ip: string
+  outcome: AuthLoginOutcome
+  username?: string | null
+  userAgent?: string | null
+}
+
+export interface AssetChangeAuditEvent {
+  ip: string
+  fileId: string
+  assetName?: string | null
+  action: AssetChangeAction
+  details?: string | null
+  userAgent?: string | null
+}
+
 function matchesAuditFilters(entry: AuditEntry, filters: AuditFilters): boolean {
   if (filters.type && entry.type !== filters.type) {
     return false
   }
 
   if (filters.reason) {
-    const currentReason = entry.type === 'decrypt_failed' ? entry.reason : entry.outcome
+    const currentReason = entry.type === 'decrypt_failed'
+      ? entry.reason
+      : entry.type === 'file_access_probe'
+        ? entry.outcome
+        : entry.type === 'auth_login'
+          ? entry.authOutcome
+          : entry.assetAction
+
     if (currentReason !== filters.reason) {
       return false
     }
@@ -108,7 +150,11 @@ function matchesAuditFilters(entry: AuditEntry, filters: AuditFilters): boolean 
 
   if (filters.fileId) {
     const normalizedNeedle = filters.fileId.toLowerCase()
-    if (!entry.fileId.toLowerCase().includes(normalizedNeedle)) {
+    const matchesFileId = entry.fileId.toLowerCase().includes(normalizedNeedle)
+    const matchesUsername = entry.username?.toLowerCase().includes(normalizedNeedle) ?? false
+    const matchesAssetName = entry.assetName?.toLowerCase().includes(normalizedNeedle) ?? false
+
+    if (!matchesFileId && !matchesUsername && !matchesAssetName) {
       return false
     }
   }
@@ -181,6 +227,47 @@ export async function logFileAccessProbe(event: FileAccessProbeAuditEvent): Prom
     ip: sanitizeField(event.ip) ?? 'unknown',
     fileId: sanitizeField(event.fileId) ?? 'unknown',
     outcome: event.outcome,
+    userAgent: sanitizeField(event.userAgent),
+  }
+
+  const serializedEntry = `${JSON.stringify(entry)}\n`
+
+  await withLock(async () => {
+    await mkdir(DATA_DIR, { recursive: true })
+    await rotateAuditLogIfNeeded(Buffer.byteLength(serializedEntry, 'utf-8'))
+    await appendFile(AUDIT_LOG_PATH, serializedEntry, 'utf-8')
+  })
+}
+
+export async function logAuthLoginAttempt(event: AuthLoginAuditEvent): Promise<void> {
+  const entry: AuditEntry = {
+    timestamp: new Date().toISOString(),
+    type: 'auth_login',
+    ip: sanitizeField(event.ip) ?? 'unknown',
+    fileId: 'login',
+    username: sanitizeField(event.username),
+    authOutcome: event.outcome,
+    userAgent: sanitizeField(event.userAgent),
+  }
+
+  const serializedEntry = `${JSON.stringify(entry)}\n`
+
+  await withLock(async () => {
+    await mkdir(DATA_DIR, { recursive: true })
+    await rotateAuditLogIfNeeded(Buffer.byteLength(serializedEntry, 'utf-8'))
+    await appendFile(AUDIT_LOG_PATH, serializedEntry, 'utf-8')
+  })
+}
+
+export async function logAssetChange(event: AssetChangeAuditEvent): Promise<void> {
+  const entry: AuditEntry = {
+    timestamp: new Date().toISOString(),
+    type: 'asset_change',
+    ip: sanitizeField(event.ip) ?? 'unknown',
+    fileId: sanitizeField(event.fileId) ?? 'unknown',
+    assetName: sanitizeField(event.assetName),
+    assetAction: event.action,
+    details: sanitizeField(event.details),
     userAgent: sanitizeField(event.userAgent),
   }
 

@@ -189,7 +189,7 @@ data/
 | File upload protection | Dangerous file extensions and MIME types are blocked for public uploads |
 | SVG protection | SVG is blocked for image uploads |
 | Path traversal protection | `imagePath()`, `filePath()`, and `privateFilePath()` enforce safe resolved paths |
-| Audit logging | Failed decrypt attempts, busy decrypts, and public metadata probes are logged to `data/audit.log` |
+| Audit logging | Login activity, asset changes, failed decrypt attempts, busy decrypts, and public metadata probes are logged to `data/audit.log` |
 | HTTP headers | `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy` are set in app config |
 | HSTS | Add `Strict-Transport-Security` once TLS is confirmed on your deployment |
 
@@ -199,6 +199,10 @@ The admin `Logs` page shows recent security-relevant events and supports filter 
 
 Events currently logged include:
 
+- Login success, failure, rate limiting, and logout
+- Successful and failed image uploads / deletes
+- Successful and failed public file uploads / deletes
+- Successful and failed encrypted file uploads / deletes
 - Failed decrypt attempts
 - Decrypt requests blocked by rate limiting
 - Decrypt requests rejected because the file is busy
