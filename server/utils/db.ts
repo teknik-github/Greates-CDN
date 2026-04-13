@@ -49,6 +49,11 @@ export async function saveImage(record: ImageRecord): Promise<void> {
   })
 }
 
+export async function getImageById(id: string): Promise<ImageRecord | null> {
+  const images = await getImages()
+  return images.find(image => image.id === id) ?? null
+}
+
 export async function deleteImage(id: string): Promise<ImageRecord | null> {
   return withLock(async () => {
     const images = await getImages()

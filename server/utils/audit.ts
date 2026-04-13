@@ -16,14 +16,17 @@ export type AssetChangeAction =
   | 'image_upload_failed'
   | 'image_deleted'
   | 'image_delete_failed'
+  | 'image_unlink_failed'
   | 'public_file_uploaded'
   | 'public_file_upload_failed'
   | 'public_file_deleted'
   | 'public_file_delete_failed'
+  | 'public_file_unlink_failed'
   | 'encrypted_file_uploaded'
   | 'encrypted_file_upload_failed'
   | 'encrypted_file_deleted'
   | 'encrypted_file_delete_failed'
+  | 'encrypted_file_unlink_failed'
 export type AuditReasonFilter = FailedDecryptReason | FileAccessProbeOutcome | AuthLoginOutcome | AssetChangeAction
 
 let writeLock = Promise.resolve()

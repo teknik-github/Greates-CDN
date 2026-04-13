@@ -18,14 +18,17 @@ interface AuditEntry {
     | 'image_upload_failed'
     | 'image_deleted'
     | 'image_delete_failed'
+    | 'image_unlink_failed'
     | 'public_file_uploaded'
     | 'public_file_upload_failed'
     | 'public_file_deleted'
     | 'public_file_delete_failed'
+    | 'public_file_unlink_failed'
     | 'encrypted_file_uploaded'
     | 'encrypted_file_upload_failed'
     | 'encrypted_file_deleted'
     | 'encrypted_file_delete_failed'
+    | 'encrypted_file_unlink_failed'
 }
 
 interface AuditLogResponse {
@@ -97,14 +100,17 @@ const reasonOptions = [
   { value: 'image_upload_failed', label: 'Image Upload Failed' },
   { value: 'image_deleted', label: 'Image Deleted' },
   { value: 'image_delete_failed', label: 'Image Delete Failed' },
+  { value: 'image_unlink_failed', label: 'Image Unlink Failed' },
   { value: 'public_file_uploaded', label: 'Public File Uploaded' },
   { value: 'public_file_upload_failed', label: 'Public File Upload Failed' },
   { value: 'public_file_deleted', label: 'Public File Deleted' },
   { value: 'public_file_delete_failed', label: 'Public File Delete Failed' },
+  { value: 'public_file_unlink_failed', label: 'Public File Unlink Failed' },
   { value: 'encrypted_file_uploaded', label: 'Encrypted File Uploaded' },
   { value: 'encrypted_file_upload_failed', label: 'Encrypted File Upload Failed' },
   { value: 'encrypted_file_deleted', label: 'Encrypted File Deleted' },
   { value: 'encrypted_file_delete_failed', label: 'Encrypted File Delete Failed' },
+  { value: 'encrypted_file_unlink_failed', label: 'Encrypted File Unlink Failed' },
   { value: 'ok', label: 'Metadata Viewed' },
   { value: 'not_found', label: 'Probe Not Found' },
   { value: 'not_protected', label: 'Probe Not Protected' },
@@ -150,6 +156,8 @@ function reasonLabel(entry: AuditEntry) {
         return 'Image Deleted'
       case 'image_delete_failed':
         return 'Image Delete Failed'
+      case 'image_unlink_failed':
+        return 'Image Unlink Failed'
       case 'public_file_uploaded':
         return 'Public File Uploaded'
       case 'public_file_upload_failed':
@@ -158,6 +166,8 @@ function reasonLabel(entry: AuditEntry) {
         return 'Public File Deleted'
       case 'public_file_delete_failed':
         return 'Public File Delete Failed'
+      case 'public_file_unlink_failed':
+        return 'Public File Unlink Failed'
       case 'encrypted_file_uploaded':
         return 'Encrypted File Uploaded'
       case 'encrypted_file_upload_failed':
@@ -166,6 +176,8 @@ function reasonLabel(entry: AuditEntry) {
         return 'Encrypted File Deleted'
       case 'encrypted_file_delete_failed':
         return 'Encrypted File Delete Failed'
+      case 'encrypted_file_unlink_failed':
+        return 'Encrypted File Unlink Failed'
       default:
         return 'Asset Changed'
     }

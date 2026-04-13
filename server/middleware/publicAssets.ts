@@ -26,7 +26,7 @@ async function serveImage(event: Parameters<typeof defineEventHandler>[0], reque
 
   setHeader(event, 'Content-Type', contentTypeFromFilename(requested))
   setHeader(event, 'Content-Length', String(fileStat.size))
-  setHeader(event, 'Cache-Control', 'public, max-age=31536000, immutable')
+  setHeader(event, 'Cache-Control', 'public, max-age=0, must-revalidate')
   setHeader(event, 'Last-Modified', fileStat.mtime.toUTCString())
 
   return sendStream(event, createReadStream(absolutePath))
@@ -58,7 +58,7 @@ async function serveFile(event: Parameters<typeof defineEventHandler>[0], reques
 
   setHeader(event, 'Content-Type', contentType)
   setHeader(event, 'Content-Length', String(fileStat.size))
-  setHeader(event, 'Cache-Control', 'public, max-age=31536000, immutable')
+  setHeader(event, 'Cache-Control', 'public, max-age=0, must-revalidate')
   setHeader(event, 'Last-Modified', fileStat.mtime.toUTCString())
   setHeader(event, 'X-Content-Type-Options', 'nosniff')
 
